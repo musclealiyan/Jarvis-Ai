@@ -1,0 +1,182 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#070b14">
+<meta name="description" content="Your personal JARVIS voice assistant">
+<link rel="manifest" href="manifest.json">
+<title>JARVIS AI</title>
+<style>
+:root{color-scheme:dark;--cyan:#52e6ff;--panel:#101827}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at top,#142641,#070b14 65%);
+color:#eef8ff;font:16px system-ui,sans-serif;min-height:100vh}
+header{text-align:center;padding:28px 12px 10px}
+h1{letter-spacing:8px;color:var(--cyan);margin:0;font-size:30px}
+.sub{color:#93a9bd;font-size:12px;letter-spacing:3px}
+main{width:min(100% - 28px,560px);margin:auto}
+.core{width:168px;height:168px;border:1px solid #52e6ff80;
+border-radius:50%;margin:24px auto;display:grid;place-items:center;
+box-shadow:0 0 35px #21c8ff22,inset 0 0 30px #21c8ff12}
+.orb{width:116px;height:116px;border-radius:50%;
+background:radial-gradient(circle at 35% 30%,#baf8ff,#30c9ed 20%,#075078 57%,#07111f 75%);
+box-shadow:0 0 30px #26cfff88;animation:pulse 3s infinite}
+@keyframes pulse{50%{transform:scale(1.06);box-shadow:0 0 48px #26cfffaa}}
+#status{text-align:center;color:var(--cyan);font-size:13px;min-height:22px}
+.panel{background:#101827dd;border:1px solid #24384e;border-radius:16px;
+padding:14px;margin:14px 0}
+#chat{height:190px;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.msg{padding:10px 12px;border-radius:12px;max-width:92%;white-space:pre-wrap;overflow-wrap:anywhere}
+.bot{background:#172c40;align-self:start}
+.user{background:#07516a;align-self:end}
+.row{display:flex;gap:8px;margin-top:10px}
+input,button{font:inherit;border-radius:11px;padding:12px}
+input{min-width:0;flex:1;background:#080e18;color:white;border:1px solid #34506a}
+button{background:#10364b;color:var(--cyan);border:1px solid #2b7790}
+button:active{transform:scale(.98)}
+#send{min-width:66px}
+#mic{width:100%;background:#07334a;padding:15px}
+.small{font-size:12px;color:#91a5ba;line-height:1.6}
+h3{margin:0 0 10px;color:var(--cyan);font-size:14px}
+.note{padding:8px 0;border-bottom:1px solid #26394a;overflow-wrap:anywhere}
+footer{text-align:center;padding:12px 8px 28px}
+</style>
+</head>
+<body>
+<header>
+<h1>J.A.R.V.I.S.</h1>
+<div class="sub">PERSONAL VOICE ASSISTANT</div>
+</header>
+<main>
+<div class="core"><div class="orb"></div></div>
+<div id="status" role="status">SYSTEM READY</div>
+
+<div class="panel">
+<div id="chat" aria-live="polite">
+<div class="msg bot">Hello. I am JARVIS. Tap the microphone or type a command to begin.</div>
+</div>
+<div class="row">
+<input id="input" placeholder="Ask or command JARVIS..." autocomplete="off">
+<button id="send">Send</button>
+</div>
+<div class="row">
+<button id="mic">🎙 Tap to speak</button>
+</div>
+</div>
+
+<div class="panel">
+<h3>QUICK COMMANDS</h3>
+<div class="small">
+• What time is it?<br>
+• Open YouTube<br>
+• Open Google<br>
+• Remember to call Arun<br>
+• Show my notes<br>
+• Clear my notes
+</div>
+</div>
+
+<div class="panel">
+<h3>YOUR NOTES</h3>
+<div id="notes" class="small">No saved notes.</div>
+</div>
+<footer class="small">
+JARVIS v1.0 · Personal prototype<br>
+AI model not connected yet.
+</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let history=JSON.parse(localStorage.getItem("jarvisChat")||"[]");
+let notes=JSON.parse(localStorage.getItem("jarvisNotes")||"[]");
+let recognition=null;
+
+function showNotes(){
+  $("notes").innerHTML="";
+  if(!notes.length){$("notes").textContent="No saved notes.";return;}
+  notes.forEach((n,i)=>{
+    const d=document.createElement("div");
+    d.className="note";d.textContent=(i+1)+". "+n;
+    $("notes").appendChild(d);
+  });
+}
+function addMessage(text,who){
+  const d=document.createElement("div");
+  d.className="msg "+who;d.textContent=text;
+  $("chat").appendChild(d);$("chat").scrollTop=$("chat").scrollHeight;
+  history.push({text,who});
+  history=history.slice(-40);
+  localStorage.setItem("jarvisChat",JSON.stringify(history));
+}
+function speak(text){
+  if(!("speechSynthesis" in window))return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="en-IN";u.rate=1;
+  speechSynthesis.speak(u);
+}
+function reply(text){
+  addMessage(text,"bot");
+  $("status").textContent="SYSTEM READY";
+  speak(text);
+}
+function handle(raw){
+  const q=raw.trim();if(!q)return;
+  addMessage(q,"user");$("input").value="";
+  const s=q.toLowerCase();
+  $("status").textContent="PROCESSING COMMAND...";
+  if(/\b(hi|hello|hey jarvis)\b/.test(s)){
+    reply("Hello. I am ready. What would you like me to do?");
+  }else if(s.includes("time")){
+    reply("The time is "+new Date().toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"}));
+  }else if(s.includes("date")||s.includes("today")){
+    reply("Today is "+new Date().toLocaleDateString("en-IN",{dateStyle:"full"}));
+  }else if(s.includes("open youtube")){
+    reply("Opening YouTube.");
+    window.open("https://www.youtube.com/","_blank","noopener");
+  }else if(s.includes("open google")){
+    reply("Opening Google.");
+    window.open("https://www.google.com/","_blank","noopener");
+  }else if(s.startsWith("remember ")||s.startsWith("save note ")){
+    const note=q.replace(/^(remember|save note)\s+/i,"").trim();
+    if(!note){reply("Tell me what you want me to remember.");return;}
+    notes.push(note);localStorage.setItem("jarvisNotes",JSON.stringify(notes));
+    showNotes();reply("Saved your note on this device.");
+  }else if(s.includes("show notes")||s.includes("list notes")){
+    reply(notes.length?"Your notes are: "+notes.map((n,i)=>(i+1)+". "+n).join(". "):"You have no saved notes.");
+  }else if(s.includes("clear my notes")||s==="clear notes"){
+    notes=[];localStorage.setItem("jarvisNotes","[]");showNotes();
+    reply("Your saved notes have been cleared.");
+  }else if(s.includes("help")||s.includes("commands")){
+    reply("I can tell the time and date, open YouTube or Google, and save, list or clear notes. General AI answers are not connected yet.");
+  }else{
+    reply("I heard: "+q+". My AI brain is not connected yet. I can handle the listed commands, but I cannot answer general questions like ChatGPT yet.");
+  }
+}
+$("send").onclick=()=>handle($("input").value);
+$("input").addEventListener("keydown",e=>{if(e.key==="Enter")handle($("input").value);});
+$("mic").onclick=()=>{
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){$("status").textContent="VOICE INPUT NOT SUPPORTED";reply("Voice input is unavailable in this browser. Please type your command.");return;}
+  try{
+    recognition=new SR();recognition.lang="en-IN";
+    recognition.interimResults=false;recognition.maxAlternatives=1;
+    $("status").textContent="LISTENING...";
+    recognition.onresult=e=>handle(e.results[0][0].transcript);
+    recognition.onerror=e=>{$("status").textContent="VOICE ERROR: "+e.error;};
+    recognition.onend=()=>{if($("status").textContent==="LISTENING...")$("status").textContent="SYSTEM READY";};
+    recognition.start();
+  }catch(e){$("status").textContent="COULD NOT START MICROPHONE";}
+};
+history.forEach(m=>{
+  const d=document.createElement("div");d.className="msg "+m.who;d.textContent=m.text;$("chat").appendChild(d);
+});
+showNotes();
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+}
+</script>
+</body>
+</html>
